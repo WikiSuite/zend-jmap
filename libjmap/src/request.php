@@ -3,6 +3,25 @@ namespace Wikisuite\JMAPCore;
 
 use Zend\Http\Request;
 
+class ResultReference
+{
+    private $name;
+    private $path;
+    private $resultOf;
+    public function __construct($path, $backReferencedMethodCall)
+    {
+        $this->path = $path;
+        $this->backReferencedMethodCall = $backReferencedMethodCall;
+    }
+    public function toRequest()
+    {
+        return (object) [
+          'name' => $this->backReferencedMethodCall['name'],
+          'path' => $this->path,
+          'resultOf'=>$this->backReferencedMethodCall['client_id']];
+    }
+}
+
 class JMAPRequest
 {
     protected $methodCalls = [];
@@ -11,29 +30,45 @@ class JMAPRequest
     {
         $this->connection = $connection;
     }
-    private function addMethodCall($name, $arguments)
+    public function addMethodCall($name, $arguments)
     {
         $methodCall = [];
         $methodCall['name'] = $name;
         $methodCall['arguments'] = $arguments;
         $methodCall['client_id'] = uniqid();
         array_push($this->methodCalls, $methodCall);
+        return $methodCall;
     }
+
 
     public function addQuery($object, $filter)
     {
         /*if (!in_array($filterOperator, ['AND','OR','NOT'])) {
             throw new \Exception("Invalid filter operator");
         }*/
-        $this->addMethodCall($object.'/query', $filter);
+        return $this->addMethodCall($object.'/query', $filter);
     }
+
+    private function methodCallArgumentToRequest($argument)
+    {
+        if ($argument instanceof ResultReference) {
+            $retVal = $argument->toRequest();
+        } else {
+            $retVal = $argument;
+        }
+
+        return $retVal;
+    }
+
 
     private function methodCallToRequest($methodCall)
     {
         return array($methodCall['name'],
-       $methodCall['arguments'],
+       array_map(array($this, 'methodCallArgumentToRequest'), $methodCall['arguments']),
        $methodCall['client_id']);
     }
+
+
     public function toJson()
     {
         $rawRequest =   array(
