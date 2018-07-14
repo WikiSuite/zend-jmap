@@ -3,7 +3,7 @@ site_dir: docs/html
 pages:
     - index.md
     - Introduction: intro.md
-site_name: Component Name Goes Here
-site_description: 'Component Description goes here'
+site_name: Zend JMAP
+site_description: 'JMAP for Zend Framework (JSON Meta Application Protocol)'
 repo_url: 'https://github.com/zendframework/zend-jmap'
 copyright: 'Copyright (c) 2018 <a href="https://www.zend.com/">Zend Technologies USA Inc.</a>'
