@@ -4,12 +4,56 @@ namespace Zend\Mail\Storage;
 
 use Zend\Mail;
 use Zend\Mail\Protocol;
+require  __DIR__ . '/../libjmap/src/jmap-core.php';
+require  __DIR__ . '/../libjmap/src/jmap-mail.php';
+
+use Wikisuite\JMAPCore;
+use Wikisuite\JMAPMail;
 
 class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\WritableInterface
 {
+    protected $connection;
 
+    /**
+     * name of current folder
+     * @var string
+     */
+    protected $currentFolder = '';
 
-     /**
+    /**
+     * Create instance with parameters
+     *
+     * @param  array $params mail reader specific parameters
+     * @throws Exception\ExceptionInterface
+     */
+    public function __construct($params)
+    {
+        if (is_array($params)) {
+            $params = (object) $params;
+        }
+        print_r($params);
+        if (! isset($params->user)) {
+            throw new Exception\InvalidArgumentException('need a user in params');
+        }
+        if (! isset($params->password)) {
+            throw new Exception\InvalidArgumentException('need a password in params');
+        }
+        if (! isset($params->url)) {
+            throw new Exception\InvalidArgumentException('need a url in params');
+        }
+        $user = $params->user;
+        $url     = $params->url;
+        $password = $params->password;
+        $ssl      = isset($params->ssl) ? $params->ssl : false;
+        $this->connection = new JMAPCore\Connection($url, $user, $password);
+        $mailbox = new JMAPMail\Mailbox($this->connection);
+        $inbox = $mailbox->getInbox();
+        /*$this->selectFolder(isset($params->folder) ? $params->folder : 'INBOX');
+            $this->connection = new Connection();
+        }*/
+    }
+
+    /**
     * Count messages all messages in current box
     *
     * @param null $flags
@@ -83,17 +127,7 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
         echo "WRITEME: ".__METHOD__."\n";
         die;
     }
-    /**
-     * Create instance with parameters
-     *
-     * @param  array $params mail reader specific parameters
-     * @throws Exception\ExceptionInterface
-     */
-    public function __construct($params)
-    {
-        echo "WRITEME: ".__METHOD__."\n";
-        die;
-    }
+
 
     /**
      * Close resource for mail lib. If you need to control, when the resource
