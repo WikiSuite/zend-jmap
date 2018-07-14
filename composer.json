@@ -6,7 +6,9 @@
         "components",
         "zf",
         "zendframework",
-        "<individual keywords for current package>"
+        "mail",
+        "jmap-client",
+        "jmap"
     ],
     "support": {
         "docs": "https://docs.zendframework.com/zend-jmap/",
