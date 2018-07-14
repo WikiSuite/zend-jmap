@@ -20,6 +20,7 @@
     },
     "require": {
         "php": "^7.1",
+        "zendframework/zend-http": "^2.8",
         "zendframework/zend-mail": "^2.10.0"
     },
     "require-dev": {

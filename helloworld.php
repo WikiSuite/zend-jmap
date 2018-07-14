@@ -17,7 +17,7 @@ foreach ($mail as $message) {
 */
 echo "JMAP\n";
 $mail = new Jmap([
-    'url'     => 'https://cyrus.suite.wiki/jmap',
+    'url'     => 'http://cyrus.suite.wiki/jmap/',
     'user'     => 'test',
     'password' => 'wikisuite',
 ]);
