@@ -3,7 +3,7 @@
 [![Build Status](https://secure.travis-ci.org/zendframework/zend-jmap.svg?branch=master)](https://secure.travis-ci.org/zendframework/zend-jmap)
 [![Coverage Status](https://coveralls.io/repos/github/zendframework/zend-jmap/badge.svg?branch=master)](https://coveralls.io/github/zendframework/zend-jmap?branch=master)
 
-This library provides ...
+This library provides JMAP for Zend Framework (JSON Meta Application Protocol)
 
 ## Installation
 
