@@ -4,6 +4,7 @@ namespace Zend\Mail\Storage;
 
 use Zend\Mail;
 use Zend\Mail\Protocol;
+
 require  __DIR__ . '/../libjmap/src/jmap-core.php';
 require  __DIR__ . '/../libjmap/src/jmap-mail.php';
 
@@ -18,8 +19,8 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
      * name of current folder
      * @var string
      */
-    protected $currentFolder = '';
-
+    protected $currentFolder;
+    private $mailboxes;
     /**
      * Create instance with parameters
      *
@@ -46,8 +47,12 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
         $password = $params->password;
         $ssl      = isset($params->ssl) ? $params->ssl : false;
         $this->connection = new JMAPCore\Connection($url, $user, $password);
-        $mailbox = new JMAPMail\Mailbox($this->connection);
-        $inbox = $mailbox->getInbox();
+        $this->mailboxes = new JMAPMail\Mailbox($this->connection);
+        if (! $this->currentFolder) {
+            $this->currentFolder = $this->mailboxes->getInboxId();
+            //var_dump($this->currentFolder);
+        }
+
         /*$this->selectFolder(isset($params->folder) ? $params->folder : 'INBOX');
             $this->connection = new Connection();
         }*/
@@ -67,18 +72,10 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
             throw new Exception\RuntimeException('No selected folder to count');
         }
         if ($flags === null) {
-            return count($this->protocol->search(['ALL']));
+            return $this->mailboxes->getMessages($this->currentFolder);
         }
-        $params = [];
-        foreach ((array) $flags as $flag) {
-            if (isset(static::$searchFlags[$flag])) {
-                $params[] = static::$searchFlags[$flag];
-            } else {
-                $params[] = 'KEYWORD';
-                $params[] = $this->protocol->escapeString($flag);
-            }
-        }
-        return count($this->protocol->search($params));
+        echo "WRITEME: ".__METHOD__."\n";
+        die;
     }
     /**
      * Get a list of messages with number and size

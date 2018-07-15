@@ -1,7 +1,9 @@
 <?php
 namespace Wikisuite\JMAPCore;
 
+require 'response.php';
 use Zend\Http\Request;
+use Wikisuite\JMAPCore\JMAPResponse;
 
 class ResultReference
 {
@@ -16,12 +18,41 @@ class ResultReference
     public function toRequest()
     {
         return (object) [
-          'name' => $this->backReferencedMethodCall['name'],
+          'name' => $this->backReferencedMethodCall->name,
           'path' => $this->path,
-          'resultOf'=>$this->backReferencedMethodCall['client_id']];
+          'resultOf'=>$this->backReferencedMethodCall->client_id];
     }
 }
 
+class MethodCall
+{
+    public $name;
+    public $client_id;
+    private $arguments;
+
+    public function __construct($name, $arguments)
+    {
+        $this->name = $name;
+        $this->arguments = $arguments;
+        $this->client_id = uniqid();
+    }
+    private function methodCallArgumentToRequest($argument)
+    {
+        if ($argument instanceof ResultReference) {
+            $retVal = $argument->toRequest();
+        } else {
+            $retVal = $argument;
+        }
+
+        return $retVal;
+    }
+    public function toRequest()
+    {
+        return array($this->name,
+     array_map(array($this, 'methodCallArgumentToRequest'), $this->arguments),
+     $this->client_id);
+    }
+}
 class JMAPRequest
 {
     protected $methodCalls = [];
@@ -32,10 +63,8 @@ class JMAPRequest
     }
     public function addMethodCall($name, $arguments)
     {
-        $methodCall = [];
-        $methodCall['name'] = $name;
-        $methodCall['arguments'] = $arguments;
-        $methodCall['client_id'] = uniqid();
+        $methodCall = new MethodCall($name, $arguments);
+
         array_push($this->methodCalls, $methodCall);
         return $methodCall;
     }
@@ -49,32 +78,14 @@ class JMAPRequest
         return $this->addMethodCall($object.'/query', $filter);
     }
 
-    private function methodCallArgumentToRequest($argument)
-    {
-        if ($argument instanceof ResultReference) {
-            $retVal = $argument->toRequest();
-        } else {
-            $retVal = $argument;
-        }
-
-        return $retVal;
-    }
-
-
-    private function methodCallToRequest($methodCall)
-    {
-        return array($methodCall['name'],
-       array_map(array($this, 'methodCallArgumentToRequest'), $methodCall['arguments']),
-       $methodCall['client_id']);
-    }
-
-
     public function toJson()
     {
         $rawRequest =   array(
         //'using' => array('urn:ietf:params:jmap:core', 'urn:ietf:params:jmap:mail'),
         'using' => array('ietf:jmap', 'ietf:jmapmail'),
-      'methodCalls' => array_map(array($this, 'methodCallToRequest'), $this->methodCalls)
+      'methodCalls' => array_map(function ($methodCall) {
+          return $methodCall->toRequest();
+      }, $this->methodCalls)
 
     );
 
@@ -93,6 +104,6 @@ class JMAPRequest
         $request->setcontent($this->toJson());
         $response = $this->connection->client->send();
         var_dump($response->getBody());
-        return json_decode($response->getBody());
+        return new JMAPResponse($response->getBody());
     }
 }
