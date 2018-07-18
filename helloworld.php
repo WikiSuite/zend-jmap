@@ -25,3 +25,4 @@ echo $mail->countMessages() . " messages found\n";
 foreach ($mail as $message) {
     printf("Mail from '%s': %s\n", $message->from, $message->subject);
 }
+//echo $mail->countMessages([Mail\Storage::FLAG_UNSEEN]) . " unread messages found\n";

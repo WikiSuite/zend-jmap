@@ -21,6 +21,32 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
      */
     protected $currentFolder;
     private $mailboxes;
+
+    /**
+     * JMAP flags to constants translation
+     * Note that the Recent and Deleted IMAP keywords are not exposed in JMAP
+     * @var array
+     */
+    /*protected static $jmapFlagstoConstants = [
+        '$answered' => Mail\Storage::FLAG_ANSWERED,
+        '$seen'     => Mail\Storage::FLAG_SEEN,
+        '$draft'    => Mail\Storage::FLAG_DRAFT,
+        '$flagged'  => Mail\Storage::FLAG_FLAGGED,
+    ];*/
+
+    /**
+     * JMAP flags to constants translation
+     * Note that the Recent and Deleted IMAP keywords are not exposed in JMAP
+     * @var array
+     */
+    /*protected static $constantsToJmapKeywordsSearch = [
+        Mail\Storage::FLAG_ANSWERED => array('$answered'=> true),
+        Mail\Storage::FLAG_SEEN => array('$seen' => true),
+        Mail\Storage::FLAG_UNSEEN => array('$seen' => false),
+        Mail\Storage::FLAG_DRAFT => array('$draft'=> true),
+        Mail\Storage::FLAG_FLAGGED => array('$flagged'=> true),
+    ];*/
+
     /**
      * Create instance with parameters
      *
@@ -29,6 +55,7 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
      */
     public function __construct($params)
     {
+        $this->has['flags'] = true;
         if (is_array($params)) {
             $params = (object) $params;
         }
@@ -71,11 +98,7 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
         if (! $this->currentFolder) {
             throw new Exception\RuntimeException('No selected folder to count');
         }
-        if ($flags === null) {
-            return $this->mailboxes->getMessages($this->currentFolder);
-        }
-        echo "WRITEME: ".__METHOD__."\n";
-        die;
+        return $this->mailboxes->getMessageCount($this->currentFolder, array('ids'));
     }
     /**
      * Get a list of messages with number and size
