@@ -13,6 +13,11 @@ class JmapMessage extends Message implements Message\MessageInterface
     protected $mailboxIds = [];
     protected $jmapFrom = [];
 
+    public function getUniqueId()
+    {
+      return $this->messageId;
+    }
+
     public function __construct(array $params)
     {
         if (isset($params['jmap'])) {
@@ -110,15 +115,4 @@ class JmapMessage extends Message implements Message\MessageInterface
         parent::__construct($params);
     }
 
-    public function getTopLines()
-    {
-    }
-
-    public function hasFlag($flag)
-    {
-    }
-
-    public function getFlags()
-    {
-    }
 }

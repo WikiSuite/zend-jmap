@@ -15,6 +15,8 @@ class Connection
 
     public $client;
 
+    public $DEBUG = false;
+
     public function __construct($url = '', $user, $password)
     {
         $this->client = new Client($url, array(

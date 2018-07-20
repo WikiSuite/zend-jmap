@@ -121,13 +121,16 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
      */
     public function getMessage($id)
     {
-        echo "WRITEME: ".__METHOD__."($id)\n";
         if (isset($this->mailBoxCache->messages[$id])) {
-            echo "CACHE HIT";
+            //echo "getMessage($id): CACHE HIT\n";
         } else {
-            echo "CACHE MISS";
-            $jmapMessage = $this->mailboxes->getMessages($this->currentFolder, null, $id -1)[0];
-            $this->mailBoxCache->messages[$id] = new JmapMessage(array('jmap' => $jmapMessage));
+            //echo "getMessage($id): CACHE MISS\n";
+            $jmapMessages = $this->mailboxes->getMessages($this->currentFolder, null, $id -1);
+            $cacheId = $id;
+            foreach ($jmapMessages as $jmapMessage) {
+                $this->mailBoxCache->messages[$cacheId] = new JmapMessage(array('jmap' => $jmapMessage));
+                $cacheId++;
+            }
         }
         return $this->mailBoxCache->messages[$id];
     }
@@ -141,8 +144,7 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
      */
     public function getRawHeader($id, $part = null, $topLines = 0)
     {
-        echo "WRITEME: ".__METHOD__."\n";
-        die;
+        throw new Exception\RuntimeException('not implemented');
     }
     /**
      * Get raw content of message or part
@@ -153,8 +155,7 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
      */
     public function getRawContent($id, $part = null)
     {
-        echo "WRITEME: ".__METHOD__."\n";
-        die;
+        throw new Exception\RuntimeException('not implemented');
     }
 
 
@@ -170,8 +171,6 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
      */
     public function noop()
     {
-        echo "WRITEME: ".__METHOD__."\n";
-        die;
     }
     /**
      * delete a message from current box/folder
@@ -195,8 +194,15 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
          */
     public function getUniqueId($id = null)
     {
-        echo "WRITEME: ".__METHOD__."\n";
-        die;
+        if ($id) {
+            return $this->getMessage($id)->getUniqueId();
+        } else {
+            $retval = [];
+            for ($i=1; $i <= $this->count(); $i++) {
+                $retval[$i] = $this->getMessage($i)->getUniqueId();
+            }
+            return $retval;
+        }
     }
     /**
      * get a message number from a unique id
@@ -210,8 +216,7 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
      */
     public function getNumberByUniqueId($id)
     {
-        echo "WRITEME: ".__METHOD__."\n";
-        die;
+        return array_search($id, $this->getUniqueId(null));
     }
 
 

@@ -7,7 +7,7 @@ use Wikisuite\JMAPCore;
 use Wikisuite\JMAPCore\JMAPRequest;
 use Wikisuite\JMAPCore\ResultReference;
 
-const DEFAULT_NUM_MESSAGES_RETRIEVED = 1;
+const DEFAULT_NUM_MESSAGES_RETRIEVED = 10;
 class Mailbox
 {
     private $connection;
@@ -41,13 +41,12 @@ class Mailbox
       $mailboxCall = $request->addMethodCall('Mailbox/get', $getArguments);
               $response = $request->send();
               $count = ($response->getResponsesForMethodCall($mailboxCall))[0]['list'][0]['totalEmails'];
-              var_dump($count);
               return $count;
     }
     public function getMessages($mailboxId, $propertiesToRetrieve=null, $position=null)
     {
         $filterArguments =  array('filter'=>array('inMailbox' => $mailboxId));
-        if (isset($position)) {
+        if (is_int($position)) {
             $filterArguments['position'] = $position;
             $filterArguments['limit'] = DEFAULT_NUM_MESSAGES_RETRIEVED;
         }

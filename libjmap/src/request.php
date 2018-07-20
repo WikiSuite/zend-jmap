@@ -100,10 +100,14 @@ class JMAPRequest
         $request->getHeaders()->addHeaders([
     'Content-Type' => 'application/json'
 ]);
-        var_dump($this->toJson());
+        if ($this->connection->DEBUG) {
+            echo("DEBUG: Sending request: \n{$this->toJson()}\n");
+        }
         $request->setcontent($this->toJson());
         $response = $this->connection->client->send();
-        var_dump(json_encode(json_decode($response->getBody(), true), JSON_PRETTY_PRINT));
+        if ($this->connection->DEBUG) {
+            echo("DEBUG: Recieved response: \n".json_encode(json_decode($response->getBody(), true), JSON_PRETTY_PRINT)."\n");
+        }
         return new JMAPResponse($response->getBody());
     }
 }

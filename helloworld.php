@@ -25,4 +25,9 @@ echo $mail->countMessages() . " messages found\n";
 foreach ($mail as $message) {
     printf("Mail from '%s': %s\n", $message->from, $message->subject);
 }
+$uniqueIdOfFirstMessage = $mail->getUniqueId(1);
+echo "Unique id of first message is $uniqueIdOfFirstMessage .\n";
+$numberOfFirstMessage = $mail->getNumberByUniqueId($uniqueIdOfFirstMessage);
+echo "Index of first message is $numberOfFirstMessage (it should be 1...)\n";
+
 //echo $mail->countMessages([Mail\Storage::FLAG_UNSEEN]) . " unread messages found\n";
