@@ -7,6 +7,7 @@ use Zend\Mail\Protocol;
 
 require  __DIR__ . '/../libjmap/src/jmap-core.php';
 require  __DIR__ . '/../libjmap/src/jmap-mail.php';
+require 'JmapMessage.php';
 
 use Wikisuite\JMAPCore;
 use Wikisuite\JMAPMail;
@@ -21,6 +22,7 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
      */
     protected $currentFolder;
     private $mailboxes;
+    private $mailBoxCache;
 
     /**
      * JMAP flags to constants translation
@@ -114,13 +116,20 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
     /**
      * Get a message with headers and body
      *
-     * @param  $id int number of message
+     * @param  $id int number of message, 1 based index
      * @return Message
      */
     public function getMessage($id)
     {
-        echo "WRITEME: ".__METHOD__."\n";
-        die;
+        echo "WRITEME: ".__METHOD__."($id)\n";
+        if (isset($this->mailBoxCache->messages[$id])) {
+            echo "CACHE HIT";
+        } else {
+            echo "CACHE MISS";
+            $jmapMessage = $this->mailboxes->getMessages($this->currentFolder, null, $id -1)[0];
+            $this->mailBoxCache->messages[$id] = new JmapMessage(array('jmap' => $jmapMessage));
+        }
+        return $this->mailBoxCache->messages[$id];
     }
     /**
      * Get raw header of message or part
@@ -155,8 +164,6 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
      */
     public function close()
     {
-        echo "WRITEME: ".__METHOD__."\n";
-        die;
     }
     /**
      * Keep the resource alive.

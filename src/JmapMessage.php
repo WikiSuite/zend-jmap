@@ -3,7 +3,6 @@ namespace Zend\Mail\Storage;
 
 use Zend\Mail;
 use Zend\Mail\Storage\Jmap;
-
 class JmapMessage extends Message implements Message\MessageInterface
 {
     /**
@@ -28,7 +27,7 @@ class JmapMessage extends Message implements Message\MessageInterface
             // ["name"=>"", "email"=>""]
             $this->jmapFrom = $message['from'];
 
-            $headers = $messages['headers'] ?? [];
+            $headers = array_map('Zend\Mail\Header\HeaderValue::filter', $message['headers']) ?? [];
 
             // others properties: keywords, size, messageId, inReplyTo, sender, to, cc, bcc, replyTo, sentAt, hasAttachment, preview
             // cyrus:
@@ -41,12 +40,12 @@ class JmapMessage extends Message implements Message\MessageInterface
             // replyTo: NULL
 
             // which one do we take?
-            $appendHeaders = array('subject', 'receivedAt', 'sentAt');
+            /*$appendHeaders = array('subject', 'receivedAt', 'sentAt');
             foreach ($appendHeaders as $n) {
                 if (isset($message[$n]) && !isset($headers[$n])) {
                     $headers[$n] = $message[$n];
                 }
-            }
+            }*/
 
             // textBody is a string?
             // htmlBody is a string?
@@ -55,15 +54,15 @@ class JmapMessage extends Message implements Message\MessageInterface
             // keywords: []
             if (isset($message['keywords']) && $message['keywords']) {
                 $jmapFlags = [
-                    '$draft'=>['imap'=>'\Draft', 'flag'=>Mail\Storage::Flag_DRAFT],
-                    '$seen'=>['imap'=>'\Seen', 'flag'=>Mail\Storage::Flag_SEEN],
-                    '$flagged'=>['imap'=>'\Flagged', 'flag'=>Mail\Storage::Flag_FLAGGED],
-                    '$answered'=>['imap'=>'\Answered', 'flag'=>Mail\Storage::Flag_ANSWERED],
+                    '$draft'=>['imap'=>'\Draft', 'flag'=>Mail\Storage::FLAG_DRAFT],
+                    '$seen'=>['imap'=>'\Seen', 'flag'=>Mail\Storage::FLAG_SEEN],
+                    '$flagged'=>['imap'=>'\Flagged', 'flag'=>Mail\Storage::FLAG_FLAGGED],
+                    '$answered'=>['imap'=>'\Answered', 'flag'=>Mail\Storage::FLAG_ANSWERED],
                 ];
                 $flags = [];
                 foreach ($message['keywords'] as $keyword) {
-                    if (isset($jmapFlags[$keywords])) {
-                        $flags[] = $jmapFlags[$keywords]['flag'];
+                    if (isset($jmapFlags[strtolower($keyword)])) {
+                        $flags[] = $jmapFlags[strtolower($keyword)]['flag'];
                     }
                 }
                 // same as Storage/Message
@@ -107,6 +106,7 @@ class JmapMessage extends Message implements Message\MessageInterface
             }
             $params['headers'] = $headers;
         }
+        //var_dump($params);
         parent::__construct($params);
     }
 

@@ -103,7 +103,7 @@ class JMAPRequest
         var_dump($this->toJson());
         $request->setcontent($this->toJson());
         $response = $this->connection->client->send();
-        var_dump($response->getBody());
+        var_dump(json_encode(json_decode($response->getBody(), true), JSON_PRETTY_PRINT));
         return new JMAPResponse($response->getBody());
     }
 }
