@@ -8,6 +8,7 @@ use Zend\Mail\Protocol;
 require  __DIR__ . '/../libjmap/src/jmap-core.php';
 require  __DIR__ . '/../libjmap/src/jmap-mail.php';
 require 'JmapMessage.php';
+require 'JmapFolder.php';
 
 use Wikisuite\JMAPCore;
 use Wikisuite\JMAPMail;
@@ -50,6 +51,12 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
     ];*/
 
     /**
+     * Folder delimiter character
+     * @var string
+     */
+    protected $delimiter = '/';
+
+    /**
      * Create instance with parameters
      *
      * @param  array $params mail reader specific parameters
@@ -77,14 +84,11 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
         $ssl      = isset($params->ssl) ? $params->ssl : false;
         $this->connection = new JMAPCore\Connection($url, $user, $password);
         $this->mailboxes = new JMAPMail\Mailbox($this->connection);
-        if (! $this->currentFolder) {
-            $this->currentFolder = $this->mailboxes->getInboxId();
-            //var_dump($this->currentFolder);
-        }
 
-        /*$this->selectFolder(isset($params->folder) ? $params->folder : 'INBOX');
-            $this->connection = new Connection();
-        }*/
+        $inboxId = $this->mailboxes->getInboxId();
+        $this->currentFolder = $this->getFolderByJmapId($inboxId);
+
+
     }
 
     /**
@@ -100,7 +104,7 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
         if (! $this->currentFolder) {
             throw new Exception\RuntimeException('No selected folder to count');
         }
-        return $this->mailboxes->getMessageCount($this->currentFolder, array('ids'));
+        return $this->mailboxes->getMessageCount($this->currentFolder->getId(), array('ids'));
     }
     /**
      * Get a list of messages with number and size
@@ -125,7 +129,7 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
             //echo "getMessage($id): CACHE HIT\n";
         } else {
             //echo "getMessage($id): CACHE MISS\n";
-            $jmapMessages = $this->mailboxes->getMessages($this->currentFolder, null, $id -1);
+            $jmapMessages = $this->mailboxes->getMessages($this->currentFolder->getId(), null, $id -1);
             $cacheId = $id;
             foreach ($jmapMessages as $jmapMessage) {
                 $this->mailBoxCache->messages[$cacheId] = new JmapMessage(array('jmap' => $jmapMessage));
@@ -223,16 +227,79 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
     /**
      * get root folder or given folder
      *
-     * @param  string $rootFolder get folder structure for given folder, else root
+     * @param  string $rootFolder get folder structure for given folder (globalName), else root
      * @throws Exception\RuntimeException
      * @throws Exception\InvalidArgumentException
-     * @throws Protocol\Exception\RuntimeException
+     * @return Folder root or wanted folder
+     */
+    private function getFolderInfo()
+    {
+        $mailboxes = $this->mailboxes->getMailboxes();
+
+        $root = new Folder('/', '/', false);
+        $mailboxesById = [null];
+        $mailboxesByGlobalName = [null];
+        foreach ($mailboxes as $index => $data) {
+            //var_dump($index, $data);
+            $localName = $data['name'];
+            if ($data['parentId'] === null) {
+                $parentFolder = $root;
+                $globalName = $localName;
+            } else {
+                $parentFolder = $mailboxesById[$data['parentId']];
+                if (! $parent) {
+                    throw new Exception\RuntimeException('error while constructing folder tree, parent ' . $data['parentId']. ' not found');
+                }
+                $globalName = $parent->getGlobalName() . $this->delimiter . $localName;
+            }
+            $folder = new JmapFolder($localName, $globalName, true, [], $data['id']);
+            $mailboxesById[$data['id']] = $folder;
+            $mailboxesByGlobalName[$globalName] = $folder;
+            $parentFolder->$localName = $folder;
+        }
+        return ['root'=>$root, 'mailboxesById'=>$mailboxesById, 'mailboxesByGlobalName'=>$mailboxesByGlobalName];
+    }
+    /**
+     * get root folder or given folder
+     *
+     * @param  string $jmapId jmapId
+     * @throws Exception\RuntimeException
+     * @throws Exception\InvalidArgumentException
+     * @return Folder root or wanted folder
+     */
+    private function getFolderByJmapId($jmapId)
+    {
+        if (! $jmapId) {
+            throw new Exception\RuntimeException('empty JMAP id provided');
+        }
+        ['mailboxesById'=>$mailboxesById] = $this->getFolderInfo();
+        $foundFolder = $mailboxesById[$jmapId];
+        if (! $foundFolder) {
+            throw new Exception\RuntimeException('folder with jmap id ' . $jmapId . ' not found');
+        }
+        return $foundFolder;
+    }
+    /**
+     * get root folder or given folder
+     *
+     * @param  string $rootFolder get folder structure for given folder (globalName), else root
+     * @throws Exception\RuntimeException
+     * @throws Exception\InvalidArgumentException
      * @return Folder root or wanted folder
      */
     public function getFolders($rootFolder = null)
     {
-        echo "WRITEME: ".__METHOD__."\n";
-        die;
+        ['root'=>$root, 'mailboxesByGlobalName'=>$mailboxesByGlobalName] = $this->getFolderInfo();
+        $foundFolder = null;
+        if ($rootFolder) {
+            $foundFolder = $mailboxesByGlobalName[$rootFolder];
+            if (! $foundFolder) {
+                throw new Exception\RuntimeException('folder with globalName ' . $rootFolder . ' not found');
+            }
+        } else {
+            $foundFolder = $root;
+        }
+        return $foundFolder;
     }
     /**
      * select given folder
@@ -241,12 +308,10 @@ class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\W
      *
      * @param  Folder|string $globalName global name of folder or instance for subfolder
      * @throws Exception\RuntimeException
-     * @throws Protocol\Exception\RuntimeException
      */
     public function selectFolder($globalName)
     {
-        echo "WRITEME: ".__METHOD__."\n";
-        die;
+        $this->currentFolder = $this->getFolders($globalName);
     }
     /**
      * get Folder instance for current folder

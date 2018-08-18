@@ -29,6 +29,20 @@ class Mailbox
         return $inbox;
     }
 
+    public function getMailboxes()
+    {
+        $filter =  array('filter'=>null);
+        //array('filter'=>array('hasRole' => true));
+        $request = new JMAPRequest($this->connection);
+        $mailboxeWithroles = $request->addQuery('Mailbox', $filter);
+        $previousIds = new ResultReference("/ids", $mailboxeWithroles);
+        $inboxCall = $request->addMethodCall('Mailbox/get', array('#ids'=>$previousIds));
+        $response = $request->send();
+        $mailboxes = ($response->getResponsesForMethodCall($inboxCall))[0]['list'];
+        //var_dump($mailboxes);
+        return $mailboxes;
+    }
+
     public function getInboxId()
     {
         return $this->getInbox()['id'];

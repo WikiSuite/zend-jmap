@@ -30,4 +30,7 @@ echo "Unique id of first message is $uniqueIdOfFirstMessage .\n";
 $numberOfFirstMessage = $mail->getNumberByUniqueId($uniqueIdOfFirstMessage);
 echo "Index of first message is $numberOfFirstMessage (it should be 1...)\n";
 
+$folders = $mail->getFolders();
+echo "Folders in account\n";
+var_dump($folders);
 //echo $mail->countMessages([Mail\Storage::FLAG_UNSEEN]) . " unread messages found\n";

@@ -106,7 +106,7 @@ class JMAPRequest
         $request->setcontent($this->toJson());
         $response = $this->connection->client->send();
         if ($this->connection->DEBUG) {
-            echo("DEBUG: Recieved response: \n".json_encode(json_decode($response->getBody(), true), JSON_PRETTY_PRINT)."\n");
+            echo("DEBUG: Received response: \n".json_encode(json_decode($response->getBody(), true), JSON_PRETTY_PRINT)."\n");
         }
         return new JMAPResponse($response->getBody());
     }
