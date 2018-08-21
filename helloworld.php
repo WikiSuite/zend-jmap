@@ -2,7 +2,7 @@
 require __DIR__ . '/vendor/autoload.php';
 use Zend\Mail\Storage\Imap;
 require  __DIR__ . '/src/Jmap.php';
-use Zend\Mail\Storage\Jmap;
+use Zend\Jmap\Jmap;
 // Connecting with Imap:
 /*echo "IMAP\n";
 $mail = new Imap([

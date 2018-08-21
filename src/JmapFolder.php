@@ -1,5 +1,5 @@
 <?php
-namespace Zend\Mail\Storage;
+namespace Zend\Jmap;
 
 use Zend\Mail;
 use Zend\Mail\Storage\Folder;

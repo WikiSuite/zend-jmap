@@ -1,9 +1,11 @@
 <?php
 
-namespace Zend\Mail\Storage;
+namespace Zend\Jmap;
 
 use Zend\Mail;
 use Zend\Mail\Protocol;
+use Zend\Mail\Storage;
+use Zend\Mail\Storage\Folder;
 
 require  __DIR__ . '/../libjmap/src/jmap-core.php';
 require  __DIR__ . '/../libjmap/src/jmap-mail.php';
@@ -13,7 +15,7 @@ require 'JmapFolder.php';
 use Wikisuite\JMAPCore;
 use Wikisuite\JMAPMail;
 
-class Jmap extends AbstractStorage implements Folder\FolderInterface, Writable\WritableInterface
+class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInterface, Storage\Writable\WritableInterface
 {
     protected $connection;
 

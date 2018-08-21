@@ -1,8 +1,9 @@
 <?php
-namespace Zend\Mail\Storage;
+namespace Zend\Jmap;
 
-use Zend\Mail;
-use Zend\Mail\Storage\Jmap;
+use Zend\Mail\Storage;
+use Zend\Mail\Storage\Message;
+
 class JmapMessage extends Message implements Message\MessageInterface
 {
     /**
@@ -59,10 +60,10 @@ class JmapMessage extends Message implements Message\MessageInterface
             // keywords: []
             if (isset($message['keywords']) && $message['keywords']) {
                 $jmapFlags = [
-                    '$draft'=>['imap'=>'\Draft', 'flag'=>Mail\Storage::FLAG_DRAFT],
-                    '$seen'=>['imap'=>'\Seen', 'flag'=>Mail\Storage::FLAG_SEEN],
-                    '$flagged'=>['imap'=>'\Flagged', 'flag'=>Mail\Storage::FLAG_FLAGGED],
-                    '$answered'=>['imap'=>'\Answered', 'flag'=>Mail\Storage::FLAG_ANSWERED],
+                    '$draft'=>['imap'=>'\Draft', 'flag'=>Storage::FLAG_DRAFT],
+                    '$seen'=>['imap'=>'\Seen', 'flag'=>Storage::FLAG_SEEN],
+                    '$flagged'=>['imap'=>'\Flagged', 'flag'=>Storage::FLAG_FLAGGED],
+                    '$answered'=>['imap'=>'\Answered', 'flag'=>Storage::FLAG_ANSWERED],
                 ];
                 $flags = [];
                 foreach ($message['keywords'] as $keyword) {

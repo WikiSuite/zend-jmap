@@ -21,6 +21,13 @@ $ composer require zendframework/zend-jmap
 
 Browse the documentation online at https://docs.zendframework.com/zend-jmap/
 
+## Running tests
+
+You need access to a JMAP host.  For example:
+```bash
+TESTS_ZEND_JMAP_HOST=http://cyrus.suite.wiki/jmap/ TESTS_ZEND_JMAP_USER=test TESTS_ZEND_JMAP_PASSWORD=wikisuite ./vendor/bin/phpunit
+```
+
 ## Support
 
 * [Issues](https://github.com/zendframework/zend-jmap/issues/)
@@ -40,4 +47,3 @@ JMAP is designed to be horizontally scalable to a very large number of users.  T
 JMAP for Mail is a specification that defines a data model for synchronising mail between a client and a server using JMAP.
 
 Please check out [JMAP at IETF](https://datatracker.ietf.org/wg/jmap/) and get involved!
-

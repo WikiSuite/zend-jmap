@@ -7,7 +7,7 @@
 
 declare(strict_types=1);
 
-namespace ZendTest\Jmap;
+namespace Zend\Mail\Storage\Jmap;
 
 use PHPUnit\Framework\TestCase;
 use Zend\Jmap\ConfigProvider;
