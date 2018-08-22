@@ -1,11 +1,10 @@
 <?php
 
-namespace Wikisuite\JMAPMail;
+namespace Wikisuite\Jmap\Mail;
 
-require 'request.php';
-use Wikisuite\JMAPCore;
-use Wikisuite\JMAPCore\JMAPRequest;
-use Wikisuite\JMAPCore\ResultReference;
+use Wikisuite\Jmap\Core;
+use Wikisuite\Jmap\Core\Request;
+use Wikisuite\Jmap\Core\ResultReference;
 
 const DEFAULT_NUM_MESSAGES_RETRIEVED = 10;
 class Mailbox
@@ -19,7 +18,7 @@ class Mailbox
     public function getInbox()
     {
         $filter =  array('filter'=>array('hasRole' => true));
-        $request = new JMAPRequest($this->connection);
+        $request = new Request($this->connection);
         $mailboxeWithroles = $request->addQuery('Mailbox', $filter);
         $previousIds = new ResultReference("/ids", $mailboxeWithroles);
         $inboxCall = $request->addMethodCall('Mailbox/get', array('#ids'=>$previousIds));
@@ -33,7 +32,7 @@ class Mailbox
     {
         $filter =  array('filter'=>null);
         //array('filter'=>array('hasRole' => true));
-        $request = new JMAPRequest($this->connection);
+        $request = new Request($this->connection);
         $mailboxeWithroles = $request->addQuery('Mailbox', $filter);
         $previousIds = new ResultReference("/ids", $mailboxeWithroles);
         $inboxCall = $request->addMethodCall('Mailbox/get', array('#ids'=>$previousIds));
@@ -50,7 +49,7 @@ class Mailbox
 
     public function getMessageCount($mailboxId)
     {
-      $request = new JMAPRequest($this->connection);
+      $request = new Request($this->connection);
       $getArguments =  array('ids'=>array($mailboxId));
       $mailboxCall = $request->addMethodCall('Mailbox/get', $getArguments);
               $response = $request->send();
@@ -64,7 +63,7 @@ class Mailbox
             $filterArguments['position'] = $position;
             $filterArguments['limit'] = DEFAULT_NUM_MESSAGES_RETRIEVED;
         }
-        $request = new JMAPRequest($this->connection);
+        $request = new Request($this->connection);
         $emailsInMailbox = $request->addQuery('Email', $filterArguments);
         $previousIds = new ResultReference("/ids", $emailsInMailbox);
         $getArguments = array('#ids'=>$previousIds);

@@ -1,7 +1,7 @@
 <?php
-namespace Wikisuite\JMAPCore;
+namespace Wikisuite\Jmap\Core;
 
-class JMAPResponse
+class Response
 {
     protected $rawResponse;
     public function __construct($rawJson)

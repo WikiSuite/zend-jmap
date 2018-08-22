@@ -23,11 +23,13 @@ class JmapTest extends TestCase
               $this->params = ['url'     => getenv('TESTS_ZEND_JMAP_HOST'),
                                      'user'     => getenv('TESTS_ZEND_JMAP_USER'),
                                      'password' => getenv('TESTS_ZEND_JMAP_PASSWORD')];
+    $this->jmap = new Jmap($this->params);
+    $this->jmap->createFolder("TESTS_ZEND_JMAP_TESTMAILBOX", null);
     }
     public function testCountMessages()
     {
-      $mail = new Jmap($this->params);
-      echo $mail->countMessages() . " messages found\n";
+
+      echo $this->jmap->countMessages() . " messages found\n";
       $this->assertEquals(3, $mail->countMessages(), "TEMPORARY:  Mail count should be 3");
 
     }

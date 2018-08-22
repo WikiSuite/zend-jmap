@@ -1,5 +1,5 @@
 <?php
-namespace Wikisuite\JMAPCore;
+namespace Wikisuite\Jmap\Core;
 
 class Session
 {

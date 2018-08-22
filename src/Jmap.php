@@ -7,14 +7,6 @@ use Zend\Mail\Protocol;
 use Zend\Mail\Storage;
 use Zend\Mail\Storage\Folder;
 
-require  __DIR__ . '/../libjmap/src/jmap-core.php';
-require  __DIR__ . '/../libjmap/src/jmap-mail.php';
-require 'JmapMessage.php';
-require 'JmapFolder.php';
-
-use Wikisuite\JMAPCore;
-use Wikisuite\JMAPMail;
-
 class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInterface, Storage\Writable\WritableInterface
 {
     protected $connection;
@@ -84,8 +76,8 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
         $url     = $params->url;
         $password = $params->password;
         $ssl      = isset($params->ssl) ? $params->ssl : false;
-        $this->connection = new JMAPCore\Connection($url, $user, $password);
-        $this->mailboxes = new JMAPMail\Mailbox($this->connection);
+        $this->connection = new \Wikisuite\Jmap\Core\Connection($url, $user, $password);
+        $this->mailboxes = new \Wikisuite\Jmap\Mail\Mailbox($this->connection);
 
         $inboxId = $this->mailboxes->getInboxId();
         $this->currentFolder = $this->getFolderByJmapId($inboxId);
@@ -340,7 +332,12 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
     public function createFolder($name, $parentFolder = null)
     {
         echo "WRITEME: ".__METHOD__."\n";
-        die;
+        $request = new \Wikisuite\Jmap\Core\Request($this->connection);
+        $arguments =  array('create'=>array($name =>array()));
+        $mailboxCall = $request->addMethodCall('Mailbox/set', $arguments);
+        $response = $request->send();
+        $rawResponse = $response->getResponsesForMethodCall($mailboxCall)[0]['list'];
+        var_dump($rawResponse);
     }
     /**
      * remove a folder

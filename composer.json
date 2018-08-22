@@ -29,7 +29,8 @@
     },
     "autoload": {
         "psr-4": {
-            "Zend\\Jmap\\": "src/"
+            "Zend\\Jmap\\": "src/",
+            "Wikisuite\\Jmap\\": "libjmap/src/"
         }
     },
     "autoload-dev": {

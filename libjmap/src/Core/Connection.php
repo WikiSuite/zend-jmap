@@ -1,11 +1,8 @@
 <?php
 
-
-namespace Wikisuite\JMAPCore;
+namespace Wikisuite\Jmap\Core;
 
 use Zend\Http\Client;
-
-require 'session.php';
 
 class Connection
 {

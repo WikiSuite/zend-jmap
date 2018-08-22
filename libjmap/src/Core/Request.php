@@ -1,9 +1,5 @@
 <?php
-namespace Wikisuite\JMAPCore;
-
-require 'response.php';
-use Zend\Http\Request;
-use Wikisuite\JMAPCore\JMAPResponse;
+namespace Wikisuite\Jmap\Core;
 
 class ResultReference
 {
@@ -53,7 +49,7 @@ class MethodCall
      $this->client_id);
     }
 }
-class JMAPRequest
+class Request
 {
     protected $methodCalls = [];
     private $connection;
@@ -96,7 +92,7 @@ class JMAPRequest
     public function send()
     {
         $request = $this->connection->client->getRequest();
-        $request->setMethod(Request::METHOD_POST);
+        $request->setMethod(\Zend\Http\Request::METHOD_POST);
         $request->getHeaders()->addHeaders([
     'Content-Type' => 'application/json'
 ]);
@@ -108,6 +104,6 @@ class JMAPRequest
         if ($this->connection->DEBUG) {
             echo("DEBUG: Received response: \n".json_encode(json_decode($response->getBody(), true), JSON_PRETTY_PRINT)."\n");
         }
-        return new JMAPResponse($response->getBody());
+        return new Response($response->getBody());
     }
 }
