@@ -36,6 +36,7 @@ class JmapTest extends TestCase
         } catch (\Zend\Mail\Storage\Exception\InvalidArgumentException $e) {
         }
         self::$jmap->createFolder(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL, null);
+        self::$jmap->selectFolder(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL);
     }
     public function tearDown()
     {
@@ -57,9 +58,9 @@ class JmapTest extends TestCase
         $iterator = new \RecursiveIteratorIterator($folder, \RecursiveIteratorIterator::CHILD_FIRST);
 
         foreach ($iterator as $key => $value) {
-            self::$jmap->removeFolder($value);
+            self::$jmap->removeFolder($value, true);
         }
-        self::$jmap->removeFolder($folder); //Remove parent, as it's not traversed.
+        self::$jmap->removeFolder($folder, true); //Remove parent, as it's not traversed.
     }
     private function countFolders()
     {
@@ -159,8 +160,108 @@ class JmapTest extends TestCase
         $folderCountAfter = $this->countFolders();
         $this->assertEquals($folderCountBefore+1, $folderCountAfter);
     }
-    public function testCountMessages()
+
+    public function testAppend()
     {
-        $this->assertEquals(3, self::$jmap->countMessages(), "TEMPORARY:  Mail count should be 3");
+        $count = self::$jmap->countMessages();
+        $message = '';
+        $message .= "From: me@example.org\r\n";
+        $message .= "To: you@example.org\r\n";
+        $message .= "Subject: append test\r\n";
+        $message .= "\r\n";
+        $message .= "This is a test\r\n";
+
+        self::$jmap->appendMessage($message);
+        $this->assertEquals($count + 1, self::$jmap->countMessages());
+        $jmapMessage = self::$jmap->getMessage($count + 1);
+        $this->assertEquals($jmapMessage->subject, 'append test');
+    }
+    public function testRemove()
+    {
+        $count = self::$jmap->countMessages();
+        $message = '';
+        $message .= "From: me@example.org\r\n";
+        $message .= "To: you@example.org\r\n";
+        $message .= "Subject: append test\r\n";
+        $message .= "\r\n";
+        $message .= "This is a test\r\n";
+        self::$jmap->appendMessage($message);
+
+
+        self::$jmap->removeMessage($count + 1);
+        $this->assertEquals(self::$jmap->countMessages(), $count);
+    }
+    public function testCopy()
+    {
+        self::$jmap->createFolder(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test1');
+        self::$jmap->selectFolder(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test1');
+        $count = self::$jmap->countMessages();
+
+        self::$jmap->createFolder(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test2');
+        self::$jmap->selectFolder(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test2');
+        $message = '';
+        $message .= "From: me@example.org\r\n";
+        $message .= "To: you@example.org\r\n";
+        $message .= "Subject: append test\r\n";
+        $message .= "\r\n";
+        $message .= "This is a test\r\n";
+        self::$jmap->appendMessage($message);
+        $message = self::$jmap->getMessage(1);
+        self::$jmap->copyMessage(1, TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test1');
+        self::$jmap->selectFolder(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test1');
+        $this->assertEquals($count + 1, self::$jmap->countMessages());
+        $jmapMessage = self::$jmap->getMessage($count + 1);
+        $this->assertEquals($jmapMessage->subject, 'append test');
+        $this->assertEquals($jmapMessage->from, 'me@example.org');
+        $this->assertEquals($jmapMessage->to, 'you@example.org');
+        $this->expectException('Zend\Mail\Storage\Exception\InvalidArgumentException');
+        self::$jmap->copyMessage(1, 'justARandomFolder');
+    }
+    public function testMove()
+    {
+        self::$jmap->createFolder(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test1');
+        self::$jmap->selectFolder(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test1');
+        $toCount = self::$jmap->countMessages();
+        self::$jmap->createFolder(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test2');
+        self::$jmap->selectFolder(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test2');
+        $message = '';
+        $message .= "From: me@example.org\r\n";
+        $message .= "To: you@example.org\r\n";
+        $message .= "Subject: append test\r\n";
+        $message .= "\r\n";
+        $message .= "This is a test\r\n";
+        self::$jmap->appendMessage($message);
+        $message = self::$jmap->getMessage(1);
+        $fromCount = self::$jmap->countMessages();
+        self::$jmap->moveMessage(1, TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test1');
+        $this->assertEquals($fromCount - 1, self::$jmap->countMessages());
+        self::$jmap->selectFolder(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test1');
+        $this->assertEquals($toCount + 1, self::$jmap->countMessages());
+    }
+
+    public function testSetFlags()
+    {
+        $this->markTestSkipped(
+              'Not yet implemented.'
+            );
+        self::$jmap->setFlags(1, [Storage::FLAG_SEEN]);
+        $message = self::$jmap->getMessage(1);
+        $this->assertTrue($message->hasFlag(Storage::FLAG_SEEN));
+        $this->assertFalse($message->hasFlag(Storage::FLAG_FLAGGED));
+        self::$jmap->setFlags(1, [Storage::FLAG_SEEN, Storage::FLAG_FLAGGED]);
+        $message = self::$jmap->getMessage(1);
+        $this->assertTrue($message->hasFlag(Storage::FLAG_SEEN));
+        $this->assertTrue($message->hasFlag(Storage::FLAG_FLAGGED));
+        self::$jmap->setFlags(1, [Storage::FLAG_FLAGGED]);
+        $message = self::$jmap->getMessage(1);
+        $this->assertFalse($message->hasFlag(Storage::FLAG_SEEN));
+        $this->assertTrue($message->hasFlag(Storage::FLAG_FLAGGED));
+        self::$jmap->setFlags(1, ['myflag']);
+        $message = self::$jmap->getMessage(1);
+        $this->assertFalse($message->hasFlag(Storage::FLAG_SEEN));
+        $this->assertFalse($message->hasFlag(Storage::FLAG_FLAGGED));
+        $this->assertTrue($message->hasFlag('myflag'));
+        $this->expectException('Zend\Mail\Storage\Exception\InvalidArgumentException');
+        self::$jmap->setFlags(1, [Storage::FLAG_RECENT]);
     }
 }

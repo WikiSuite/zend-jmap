@@ -4,36 +4,56 @@ namespace Zend\Jmap;
 use Zend\Mail\Storage;
 use Zend\Mail\Storage\Message;
 
-class JmapMessage extends Message implements Message\MessageInterface
+function arrayCopy(array $array)
+{
+    $result = array();
+    foreach ($array as $key => $val) {
+        if (is_array($val)) {
+            $result[$key] = arrayCopy($val);
+        } elseif (is_object($val)) {
+            $result[$key] = clone $val;
+        } else {
+            $result[$key] = $val;
+        }
+    }
+    return $result;
+}
+class JmapMessage extends \Zend\Mail\Storage\Message implements Message\MessageInterface
 {
     /**
      * @var string
      */
+    protected $jmapMessage;
     protected $messageId = '';
     protected $threadId = '';
     protected $mailboxIds = [];
     protected $jmapFrom = [];
-
+    public static $jmapFlagsLookup = [
+        '$draft'=>['imap'=>'\Draft', 'flag'=>Storage::FLAG_DRAFT],
+        '$seen'=>['imap'=>'\Seen', 'flag'=>Storage::FLAG_SEEN],
+        '$flagged'=>['imap'=>'\Flagged', 'flag'=>Storage::FLAG_FLAGGED],
+        '$answered'=>['imap'=>'\Answered', 'flag'=>Storage::FLAG_ANSWERED],
+    ];
     public function getUniqueId()
     {
-      return $this->messageId;
+        return $this->messageId;
     }
 
     public function __construct(array $params)
     {
         if (isset($params['jmap'])) {
-            $message = $params['jmap'];
-            $this->messageId = $message['id'];
+            $this->jmapMessage = $params['jmap'];
+            $this->messageId = $this->jmapMessage['id'];
             // messageNum is a string right now
             // blobId: string
-            //$this->messageNum = $message['id'];
-            $this->threadId = $message['threadId'];
+            //$this->messageNum = $this->jmapMessage['id'];
+            $this->threadId = $this->jmapMessage['threadId'];
             // array of string => bool
-            $this->mailboxIds = $message['mailboxIds'];
+            $this->mailboxIds = $this->jmapMessage['mailboxIds'];
             // ["name"=>"", "email"=>""]
-            $this->jmapFrom = $message['from'];
+            $this->jmapFrom = $this->jmapMessage['from'];
 
-            $headers = array_map('Zend\Mail\Header\HeaderValue::filter', $message['headers']) ?? [];
+            $headers = array_map('Zend\Mail\Header\HeaderValue::filter', $this->jmapMessage['headers']) ?? [];
 
             // others properties: keywords, size, messageId, inReplyTo, sender, to, cc, bcc, replyTo, sentAt, hasAttachment, preview
             // cyrus:
@@ -48,8 +68,8 @@ class JmapMessage extends Message implements Message\MessageInterface
             // which one do we take?
             /*$appendHeaders = array('subject', 'receivedAt', 'sentAt');
             foreach ($appendHeaders as $n) {
-                if (isset($message[$n]) && !isset($headers[$n])) {
-                    $headers[$n] = $message[$n];
+                if (isset($this->jmapMessage[$n]) && !isset($headers[$n])) {
+                    $headers[$n] = $this->jmapMessage[$n];
                 }
             }*/
 
@@ -58,17 +78,11 @@ class JmapMessage extends Message implements Message\MessageInterface
             // attachments NULL
             // attachmentsEmail NULL
             // keywords: []
-            if (isset($message['keywords']) && $message['keywords']) {
-                $jmapFlags = [
-                    '$draft'=>['imap'=>'\Draft', 'flag'=>Storage::FLAG_DRAFT],
-                    '$seen'=>['imap'=>'\Seen', 'flag'=>Storage::FLAG_SEEN],
-                    '$flagged'=>['imap'=>'\Flagged', 'flag'=>Storage::FLAG_FLAGGED],
-                    '$answered'=>['imap'=>'\Answered', 'flag'=>Storage::FLAG_ANSWERED],
-                ];
+            if (isset($this->jmapMessage['keywords']) && $this->jmapMessage['keywords']) {
                 $flags = [];
-                foreach ($message['keywords'] as $keyword) {
-                    if (isset($jmapFlags[strtolower($keyword)])) {
-                        $flags[] = $jmapFlags[strtolower($keyword)]['flag'];
+                foreach ($this->jmapMessage['keywords'] as $keyword) {
+                    if (isset(self::jmapFlagsLookup[strtolower($keyword)])) {
+                        $flags[] = self::jmapFlagsLookup[strtolower($keyword)]['flag'];
                     }
                 }
                 // same as Storage/Message
@@ -78,18 +92,18 @@ class JmapMessage extends Message implements Message\MessageInterface
             // preview: string
 
             // ???
-            if (array_key_exists('header:List-POST:asURLs', $message)) {
-                $headers['List-POST'] = $message['header:List-POST:asURLs'];
+            if (array_key_exists('header:List-POST:asURLs', $this->jmapMessage)) {
+                $headers['List-POST'] = $this->jmapMessage['header:List-POST:asURLs'];
             }
 
-            if (is_array($message['htmlBody'])) {
-                $nbParts = count($message['htmlBody']);
+            if (is_array($this->jmapMessage['htmlBody'])) {
+                $nbParts = count($this->jmapMessage['htmlBody']);
                 if ($nbParts > 0) {
                     $this->countParts = $nbParts;
                     $this->parts = []; // TODO
                     $headers['content-type'] = 'multipart/mixed';
                     $counter = 1;
-                    foreach ($message['htmlBody'] as $i => $body) {
+                    foreach ($this->jmapMessage['htmlBody'] as $i => $body) {
                         $partHeaders = [
                             'partid' => $body['partId'],
                             'blobid' => $body['blogId'],
@@ -97,8 +111,8 @@ class JmapMessage extends Message implements Message\MessageInterface
                             'content-type' => $body['type'],
                         ];
                         $partContent = '';
-                        if (isset($message['bodyValues'][$body['partId']])) {
-                            $bodyProps = $message['bodyValues'][$body['partId']];
+                        if (isset($this->jmapMessage['bodyValues'][$body['partId']])) {
+                            $bodyProps = $this->jmapMessage['bodyValues'][$body['partId']];
                             $partHeaders['isEncodingProblem'] = $bodyProps['isEncodingProblem'];
                             $partHeaders['isTruncated'] = $bodyProps['isTruncated'];
                             $partContent = $bodyProps['value'];
@@ -107,13 +121,115 @@ class JmapMessage extends Message implements Message\MessageInterface
                     }
                 } else {
                 }
-            } elseif (is_string($message['htmlBody'])) {
-                // ...
+            } elseif (is_string($this->jmapMessage['htmlBody'])) {
+                $params['content'] = $this->jmapMessage['htmlBody'];
+            } elseif (is_string($this->jmapMessage['textBody'])) {
+                $params['content'] = $this->jmapMessage['textBody'];
             }
             $params['headers'] = $headers;
         }
         //var_dump($params);
         parent::__construct($params);
     }
+    public function getRawJmap()
+    {
+        return arrayCopy($this->jmapMessage);
+    }
 
+    /**
+ * return toplines as found after headers
+ *
+ * @return string toplines
+ */
+    public function getTopLines()
+    {
+        return $this->jmapMessage['preview'];
+    }
+
+    private static function AddressInterfacetoJmapEmailAddress($address)
+    {
+        $retVal = array();
+        if ($address->getName()) {
+            $retVal['name'] = $address->getName();
+        } else {
+            $retVal['name'] = '';
+        }
+
+        $retVal['email'] = $address->getEmail();
+
+        return $retVal;
+    }
+    /**
+     * Builds an array of parameters representing a JMAP message from a Zend\Message instance
+     *
+     * @param object \Zend\Mail\Message
+     * @return object The resulting associative array is compatible with libjmap
+     */
+    public static function toJmapRawMessage($message)
+    {
+        $rawJmapMessage = array();
+        if (!($message instanceof \Zend\Mail\Message)) {
+            throw new Storage\Exception\InvalidArgumentException("message provided is of class ".get_class($message).", in should be a Zend\Mail\Message");
+        }
+
+        foreach ($message->getFrom() as $address) {
+            $rawJmapMessage['from'][] = self::AddressInterfacetoJmapEmailAddress($address);
+        }
+        foreach ($message->getTo() as $address) {
+            $rawJmapMessage['to'][] = self::AddressInterfacetoJmapEmailAddress($address);
+        }
+        foreach ($message->getCc() as $address) {
+            $rawJmapMessage['cc'][] = self::AddressInterfacetoJmapEmailAddress($address);
+        }
+        foreach ($message->getBcc() as $address) {
+            $rawJmapMessage['bcc'][] = self::AddressInterfacetoJmapEmailAddress($address);
+        }
+        foreach ($message->getReplyTo() as $address) {
+            $rawJmapMessage['replyTo'][] = self::AddressInterfacetoJmapEmailAddress($address);
+        }
+        if ($message->getSender()!== null) {
+            foreach ($message->getSender() as $address) {
+                $rawJmapMessage['sender'][] = self::AddressInterfacetoJmapEmailAddress($address);
+            }
+        }
+        $rawJmapMessage['subject'] = $message->getSubject();
+        $zendBody = $message->getBody();
+        if ($zendBody instanceof Mime\Message) {
+            $rawJmapMessage['bodyStructure'] = array('type'=>"multipart/alternative");
+            $rawJmapMessage['bodyStructure']['subParts'] = array();
+            $rawJmapMessage['bodyStructure']['bodyValues'] = array();
+            foreach ($zendBody->getParts() as $part) {
+                $partId = $part->getId();
+                $rawJmapMessage['bodyStructure']['subParts'][] = array(
+                  'partId'=>$partId,
+                  'type'=>$part->getType()
+                );
+                $rawJmapMessage['bodyStructure']['bodyValues'][] = array(
+                  'partId'=>$partId,
+                  'value'=>$part->getRawContent(),
+                  'isTruncated'=>false
+                );
+            }
+        } else {
+            $rawJmapMessage['textBody'] = (string) $zendBody;
+        }
+        $rawJmapMessage['keywords'] = array();
+        return $rawJmapMessage;
+    }
+    /**
+     * Builds an array of parameters representing a JMAP message from a Zend\Message instance
+     *
+     * @param object \Zend\Mail\Message
+     * @return object The resulting associative array is compatible with libjmap
+     */
+    public static function stripImmutableProperties($rawJmapMessage)
+    {
+        unset($rawJmapMessage['id']);
+        unset($rawJmapMessage['blobId']);
+        unset($rawJmapMessage['threadId']);
+        unset($rawJmapMessage['size']);
+        unset($rawJmapMessage['hasAttachment']);
+        unset($rawJmapMessage['preview']);
+        return $rawJmapMessage;
+    }
 }

@@ -4,11 +4,31 @@ namespace Wikisuite\Jmap\Core;
 class Response
 {
     protected $rawResponse;
-    public function __construct($rawJson)
+    protected $connection;
+    public function __construct($connection, $rawJson)
     {
+        $this->connection = $connection;
         $this->rawResponse = json_decode($rawJson, true);
+        $this->processResponse();
     }
 
+    private function processResponse()
+    {
+        foreach ($this->rawResponse['methodResponses'] as $key => $response) {
+            $methodNameOrError = $response[0];
+            $clientId = $response[2];
+            $methodResponse = $response[1];
+
+            if ($methodNameOrError !== 'error') {
+                if (!empty($methodResponse['newState'])) {
+                    $this->connection->updateLatestState($methodResponse['newState']);
+                }
+                if (!empty($methodResponse['state'])) {
+                    $this->connection->updateLatestState($methodResponse['state']);
+                }
+            }
+        }
+    }
     public function getResponsesForMethodCall($methodCall)
     {
         $retVal = [];

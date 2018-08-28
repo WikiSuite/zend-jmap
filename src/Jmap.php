@@ -2,10 +2,9 @@
 
 namespace Zend\Jmap;
 
-use Zend\Mail;
-use Zend\Mail\Protocol;
 use Zend\Mail\Storage;
 use Zend\Mail\Storage\Folder;
+use Zend\Mail\Message;
 
 class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInterface, Storage\Writable\WritableInterface
 {
@@ -17,7 +16,8 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
      */
     protected $currentFolder;
     private $mailboxes;
-    private $mailBoxCache;
+    private $emails;
+    private $mailBoxCache = [];
 
     /**
      * JMAP flags to constants translation
@@ -62,15 +62,14 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
         if (is_array($params)) {
             $params = (object) $params;
         }
-        print_r($params);
         if (! isset($params->user)) {
-            throw new Exception\InvalidArgumentException('need a user in params');
+            throw new Storage\Exception\InvalidArgumentException('need a user in params');
         }
         if (! isset($params->password)) {
-            throw new Exception\InvalidArgumentException('need a password in params');
+            throw new Storage\Exception\InvalidArgumentException('need a password in params');
         }
         if (! isset($params->url)) {
-            throw new Exception\InvalidArgumentException('need a url in params');
+            throw new Storage\Exception\InvalidArgumentException('need a url in params');
         }
         $user = $params->user;
         $url     = $params->url;
@@ -78,7 +77,8 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
         $ssl      = isset($params->ssl) ? $params->ssl : false;
         $this->connection = new \Wikisuite\Jmap\Core\Connection($url, $user, $password);
         $this->mailboxes = new \Wikisuite\Jmap\Mail\Mailbox($this->connection);
-
+        $this->emails = new \Wikisuite\Jmap\Mail\Email($this->connection);
+        $this->blobs = new \Wikisuite\Jmap\Core\Blob($this->connection);
         $inboxId = $this->mailboxes->getInboxId();
         $this->currentFolder = $this->getFolderByJmapId($inboxId);
     }
@@ -94,7 +94,7 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
     public function countMessages($flags = null)
     {
         if (! $this->currentFolder) {
-            throw new Exception\RuntimeException('No selected folder to count');
+            throw new Storage\Exception\RuntimeException('No selected folder to count');
         }
         return $this->mailboxes->getMessageCount($this->currentFolder->getId(), array('ids'));
     }
@@ -117,18 +117,28 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
      */
     public function getMessage($id)
     {
-        if (isset($this->mailBoxCache->messages[$id])) {
+        $latestState = $this->connection->getLatestState();
+        if (!empty($this->mailBoxCache['state']) && $this->mailBoxCache['state'] !== $latestState) {
+            //Cache is obsolete
+            $this->mailBoxCache = [];
+        }
+        if (isset($this->mailBoxCache['messages'][$id])) {
             //echo "getMessage($id): CACHE HIT\n";
         } else {
             //echo "getMessage($id): CACHE MISS\n";
             $jmapMessages = $this->mailboxes->getMessages($this->currentFolder->getId(), null, $id -1);
-            $cacheId = $id;
+            $cacheId = 1;
+            $this->mailBoxCache['state'] = $latestState;
             foreach ($jmapMessages as $jmapMessage) {
-                $this->mailBoxCache->messages[$cacheId] = new JmapMessage(array('jmap' => $jmapMessage));
+                $this->mailBoxCache['messages'][$cacheId] = new JmapMessage([
+                  'jmap' => $jmapMessage,
+                  'handler' => $this,
+                  'id' => $id
+                ]);
                 $cacheId++;
             }
         }
-        return $this->mailBoxCache->messages[$id];
+        return $this->mailBoxCache['messages'][$id];
     }
     /**
      * Get raw header of message or part
@@ -140,7 +150,7 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
      */
     public function getRawHeader($id, $part = null, $topLines = 0)
     {
-        throw new Exception\RuntimeException('not implemented');
+        throw new Storage\Exception\RuntimeException('not implemented');
     }
     /**
      * Get raw content of message or part
@@ -151,7 +161,11 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
      */
     public function getRawContent($id, $part = null)
     {
-        throw new Exception\RuntimeException('not implemented');
+        if ($part !== null) {
+            // TODO: implement
+            throw new Storage\Exception\RuntimeException('not implemented');
+        }
+        return $this->getMessage($id)->getContent();
     }
 
 
@@ -175,8 +189,8 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
      */
     public function removeMessage($id)
     {
-        echo "WRITEME: ".__METHOD__."\n";
-        die;
+        $message = $this->getMessage($id);
+        $this->emails->destroy($message->getUniqueId());
     }
 
     /**
@@ -240,7 +254,7 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
             } else {
                 $parentFolder = $mailboxesById[$data['parentId']];
                 if (! $parentFolder) {
-                    throw new \Zend\Mail\Storage\Exception\RuntimeException('error while constructing folder tree, parent ' . $data['parentId']. ' not found');
+                    throw new Storage\Exception\RuntimeException('error while constructing folder tree, parent ' . $data['parentId']. ' not found');
                 }
                 $globalName = $parentFolder->getGlobalName() . $this->delimiter . $localName;
             }
@@ -262,12 +276,12 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
     private function getFolderByJmapId($jmapId)
     {
         if (! $jmapId) {
-            throw new Exception\RuntimeException('empty JMAP id provided');
+            throw new Storage\Exception\RuntimeException('empty JMAP id provided');
         }
         ['mailboxesById'=>$mailboxesById] = $this->getFolderInfo();
         $foundFolder = $mailboxesById[$jmapId];
         if (! $foundFolder) {
-            throw new \Zend\Mail\Storage\Exception\RuntimeException('folder with jmap id ' . $jmapId . ' not found');
+            throw new Storage\Exception\RuntimeException('folder with jmap id ' . $jmapId . ' not found');
         }
         return $foundFolder;
     }
@@ -288,7 +302,7 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
             //echo "getFolders($rootFolderGlobalName) looking into:\n";
             //var_dump(array_keys($mailboxesByGlobalName));
             if (!array_key_exists($rootFolderGlobalName, $mailboxesByGlobalName)) {
-                throw new \Zend\Mail\Storage\Exception\InvalidArgumentException('folder with globalName ' . $rootFolder . ' not found');
+                throw new Storage\Exception\InvalidArgumentException('folder with globalName ' . $rootFolder . ' not found');
             }
             $foundFolder = $mailboxesByGlobalName[$rootFolderGlobalName];
         } else {
@@ -337,13 +351,13 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
         $parentMailboxId = null;
         $pathElements = explode($this->delimiter, $name);
         if (empty($name)) {
-            throw new \Zend\Mail\Storage\Exception\InvalidArgumentException("name must be provided");
+            throw new Storage\Exception\InvalidArgumentException("name must be provided");
         }
 
         if ($parentFolder) {
             $pathElementCount = count($pathElements);
             if ($pathElementCount!==1) {
-                throw new \Zend\Mail\Storage\Exception\InvalidArgumentException("\$name must be a localName if parentElement is provided.  But \$name has $pathElementCount elements");
+                throw new Storage\Exception\InvalidArgumentException("\$name must be a localName if parentElement is provided.  But \$name has $pathElementCount elements");
             }
             $parentFolderReal = $this->getFolders($parentFolder);
             $parentFolderPathElements = explode($this->delimiter, $parentFolder);
@@ -361,13 +375,13 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
             if (array_key_exists($currentPath, $mailboxesByGlobalName)) {
                 if ($i + 1 === $pathElementCount) {
                     //The last element in the path already exists
-                    throw new \Zend\Mail\Storage\Exception\InvalidArgumentException("Folder $currentPath already exists on the server");
+                    throw new Storage\Exception\InvalidArgumentException("Folder $currentPath already exists on the server");
                 }
                 $parentMailboxId = $mailboxesByGlobalName[$currentPath]->getId();
             } else {
                 $parentMailboxId = $this->mailboxes->create($localName, $parentMailboxId);
                 if (empty($parentMailboxId)) {
-                    throw new \Zend\Mail\Storage\Exception\RuntimeException("mailbox $name wasn't created successfully");
+                    throw new Storage\Exception\RuntimeException("mailbox $name wasn't created successfully");
                 }
             }
         }
@@ -376,15 +390,16 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
      * remove a folder
      *
      * @param  string|Folder $name name or instance of folder
+     * @param boolean $forceDeleteEvenIfMailPresent will delete mails in the folder before deleting.
      * @throws Exception\RuntimeException
      */
-    public function removeFolder($name)
+    public function removeFolder($name, $forceDeleteEvenIfMailPresent=false)
     {
         $folder = $this->getFolders($name);
         if (!$folder) {
-            throw new \Zend\Mail\Storage\Exception\RuntimeException("mailbox $name not found, cannot delete");
+            throw new Storage\Exception\RuntimeException("mailbox $name not found, cannot delete");
         }
-        $this->mailboxes->destroy($folder->getId());
+        $this->mailboxes->destroy($folder->getId(), $forceDeleteEvenIfMailPresent);
     }
 
     private function parseName($name)
@@ -417,7 +432,7 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
         $folder = $this->getFolders($oldName);
         $propertiesToUpdate = array();
         if (!$folder) {
-            throw new \Zend\Mail\Storage\Exception\RuntimeException("mailbox $oldName not found, cannot rename");
+            throw new Storage\Exception\RuntimeException("mailbox $oldName not found, cannot rename");
         }
         $oldNameInfo = $this->parseName($oldName);
         $newNameInfo =  $this->parseName($newName);
@@ -445,12 +460,26 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
      *     folder is taken
      * @param null|array $flags set flags for new message, else a default set
      *     is used
+     * @throws Exception\InvalidArgumentException
      * @throws Exception\RuntimeException
      */
     public function appendMessage($message, $folder = null, $flags = null)
     {
-        echo "WRITEME: ".__METHOD__."\n";
-        die;
+        if ($folder) {
+            throw new Storage\Exception\InvalidArgumentException("Folder selection not implemented yet");
+        }
+        if ($flags) {
+            throw new Storage\Exception\InvalidArgumentException("Setting flags not implemented yet");
+        }
+        if (is_string($message)) {
+            $message = Message::fromString($message);
+        }
+        if (!is_a($message, 'Zend\Mail\Message')) {
+            throw new Storage\Exception\InvalidArgumentException("message provided is of class ".get_class($message));
+        }
+        $jmapMessage = JmapMessage::toJmapRawMessage($message);
+        $jmapMessage['mailboxIds'] = array($this->currentFolder->getId() => true);
+        $this->emails->create($jmapMessage);
     }
     /**
      * copy an existing message
@@ -461,13 +490,23 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
      */
     public function copyMessage($id, $folder)
     {
-        echo "WRITEME: ".__METHOD__."\n";
-        die;
+        $message = $this->getMessage($id);
+        $folder = $this->getFolders($folder);
+        //This is not yet supported by Cyrus...
+        //$this->emails->copy($message->getUniqueId(), $folder->getId());
+
+        //Manual workaround
+        $jmapMessage = $message->getRawJmap();
+
+        $blobId = $jmapMessage['blobId'];
+        $rawMessage = $this->blobs->get($blobId);
+        $zendMailMessage = Message::fromString($rawMessage);
+        $newJmapMessage = JmapMessage::toJmapRawMessage($zendMailMessage);
+        $newJmapMessage['mailboxIds'] = array($folder->getId() => true);
+        $this->emails->create($newJmapMessage);
     }
     /**
      * move an existing message
-     *
-     * NOTE: IMAP has no native move command, thus it's emulated with copy and delete
      *
      * @param int $id number of message
      * @param string|Folder $folder name or instance of target folder
@@ -475,8 +514,11 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
      */
     public function moveMessage($id, $folder)
     {
-        echo "WRITEME: ".__METHOD__."\n";
-        die;
+        $message = $this->getMessage($id);
+        $folder = $this->getFolders($folder);
+        $propertiesToUpdate = array();
+        $propertiesToUpdate['mailboxIds']=array($folder->getId() => true);
+        $this->emails->update($message->getUniqueId(), $propertiesToUpdate);
     }
     /**
      * set flags for message
@@ -490,7 +532,6 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
     public function setFlags($id, $flags)
     {
         echo "WRITEME: ".__METHOD__."\n";
-        die;
     }
     /**
      * enable raw request output

@@ -102,16 +102,19 @@ class Request
 
     public function send()
     {
-        $request = $this->connection->client->getRequest();
+        $client = $this->connection->prepareNextRequest();
+        $client->setUri($this->connection->session->getApiUrl());
+        $request = $client->getRequest();
         $request->setMethod(\Zend\Http\Request::METHOD_POST);
         $request->getHeaders()->addHeaders([
-    'Content-Type' => 'application/json'
-]);
+            'Content-Type' => 'application/json'
+          ]);
         if ($this->connection->DEBUG) {
             echo("DEBUG: Sending request: \n{$this->toJson()}\n");
         }
         $request->setcontent($this->toJson());
-        $response = $this->connection->client->send();
+        $response = $client->send();
+        $request->getHeaders()->clearHeaders();
         if (!$response->getHeaders()->get('Content-Type')->match('application/json')) {
             throw new Exception\ResponseErrorException("The response had ".$response->getHeaders()->get('Content-Type')->toString()." instead of application/json.  Body is:\n ".$response->getBody());
         }
@@ -119,6 +122,6 @@ class Request
             //var_dump($response->getBody());
             echo("DEBUG: Received response: \n".json_encode(json_decode($response->getBody(), true), JSON_PRETTY_PRINT)."\n");
         }
-        return new Response($response->getBody());
+        return new Response($this->connection, $response->getBody());
     }
 }

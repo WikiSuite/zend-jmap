@@ -129,7 +129,12 @@ class Mailbox
         $id = $rawResponse['created'][$createId]['id'];
         return $id;
     }
-    public function destroy($mailboxId)
+    /**
+     * @param string $mailboxId id of the mailbox to delete
+     * @param boolean $onDestroyRemoveMessages if true, force deleting mailbox even if messages are present.
+     * @return string id of the created mailbox
+     */
+    public function destroy($mailboxId, $onDestroyRemoveMessages=false)
     {
         $request = new \Wikisuite\Jmap\Core\Request($this->connection);
         $arguments =  array(
@@ -137,6 +142,9 @@ class Mailbox
           $mailboxId
         )
       );
+        if ($onDestroyRemoveMessages) {
+            $arguments['onDestroyRemoveMessages']=true;
+        }
         $mailboxCall = $request->addMethodCall('Mailbox', 'set', $arguments);
         $response = $request->send();
         $rawResponse = $response->getResponsesForMethodCall($mailboxCall)[0];
@@ -148,7 +156,7 @@ class Mailbox
 
     /**
      * @param string $mailboxId The id of the mailbos to act on
-     * @param array $attributes Associative array of JMAP $properties to modify
+     * @param array $properties Associative array of JMAP $properties to modify
      */
     public function update($mailboxId, $properties)
     {
