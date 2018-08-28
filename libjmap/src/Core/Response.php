@@ -11,7 +11,10 @@ class Response
         $this->rawResponse = json_decode($rawJson, true);
         $this->processResponse();
     }
-
+    private function getObjectFromFullMethodName($fullMethodName)
+    {
+        return explode('/', $fullMethodName)[0];
+    }
     private function processResponse()
     {
         foreach ($this->rawResponse['methodResponses'] as $key => $response) {
@@ -20,11 +23,17 @@ class Response
             $methodResponse = $response[1];
 
             if ($methodNameOrError !== 'error') {
+                $state = null;
                 if (!empty($methodResponse['newState'])) {
-                    $this->connection->updateLatestState($methodResponse['newState']);
+                    $state = $methodResponse['newState'];
                 }
                 if (!empty($methodResponse['state'])) {
-                    $this->connection->updateLatestState($methodResponse['state']);
+                    $state = $methodResponse['state'];
+                }
+                if ($state) {
+                    $object = $this->getObjectFromFullMethodName($methodNameOrError);
+                    $this->connection->updateLatestState($state);
+                    $this->connection->cache->garbageCollectCache($object, $state);
                 }
             }
         }

@@ -18,6 +18,7 @@ class Connection
 
     private $user;
     private $password;
+    public $cache;
     public function prepareNextRequest()
     {
         $this->client->resetParameters();
@@ -39,6 +40,7 @@ class Connection
         $body = $response->getBody();
         $this->session = new Session($url, $body);
         $this->account = $this->session->getPrimaryAccount();
+        $this->cache = new Cache($this);
     }
 
     public function getLatestState()

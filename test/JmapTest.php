@@ -233,6 +233,7 @@ class JmapTest extends TestCase
         self::$jmap->appendMessage($message);
         $message = self::$jmap->getMessage(1);
         $fromCount = self::$jmap->countMessages();
+        //self::$jmap->enableDebug();
         self::$jmap->moveMessage(1, TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test1');
         $this->assertEquals($fromCount - 1, self::$jmap->countMessages());
         self::$jmap->selectFolder(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test1');

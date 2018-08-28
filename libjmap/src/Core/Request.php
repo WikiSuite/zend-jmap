@@ -90,7 +90,7 @@ class Request
         $rawRequest =   array(
         //'using' => array('urn:ietf:params:jmap:core', 'urn:ietf:params:jmap:mail'),
         'using' => array('ietf:jmap', 'ietf:jmapmail'),
-      'methodCalls' => array_map(function ($methodCall) {
+        'methodCalls' => array_map(function ($methodCall) {
           return $methodCall->toRequest();
       }, $this->methodCalls)
 

@@ -55,16 +55,23 @@ class Mailbox
 
     public function getMailboxes()
     {
-        $filter =  array('filter'=>null);
-        //array('filter'=>array('hasRole' => true));
-        $request = new Request($this->connection);
-        $mailboxeWithroles = $request->addQuery('Mailbox', $filter);
-        $previousIds = new ResultReference("/ids", $mailboxeWithroles);
-        $inboxCall = $request->addMethodCall('Mailbox', 'get', array('#ids'=>$previousIds));
-        $response = $request->send();
-        $mailboxes = ($response->getResponsesForMethodCall($inboxCall))[0]['list'];
-        //var_dump($mailboxes);
-        return $mailboxes;
+      $cacheKey = 'getMailboxes()';
+        $cachedResponse = $this->connection->cache->get('Mailbox', $cacheKey);
+        if (!$cachedResponse) {
+            $filter =  array('filter'=>null);
+            //array('filter'=>array('hasRole' => true));
+            $request = new Request($this->connection);
+            $mailboxeWithroles = $request->addQuery('Mailbox', $filter);
+            $previousIds = new ResultReference("/ids", $mailboxeWithroles);
+            $inboxCall = $request->addMethodCall('Mailbox', 'get', array('#ids'=>$previousIds));
+            $response = $request->send();
+            $callResponses = $response->getResponsesForMethodCall($inboxCall);
+            $mailboxes = $callResponses[0]['list'];
+            $state = $callResponses[0]['state'];
+            //var_dump($mailboxes);
+            $cachedResponse = $this->connection->cache->set('Mailbox', $state, $cacheKey, $mailboxes);
+        }
+        return $cachedResponse;
     }
 
     public function getInboxId()
@@ -74,12 +81,19 @@ class Mailbox
 
     public function getMessageCount($mailboxId)
     {
-        $request = new Request($this->connection);
-        $getArguments =  array('ids'=>array($mailboxId));
-        $mailboxCall = $request->addMethodCall('Mailbox', 'get', $getArguments);
-        $response = $request->send();
-        $count = ($response->getResponsesForMethodCall($mailboxCall))[0]['list'][0]['totalEmails'];
-        return $count;
+        $cacheKey = "getMessageCount($mailboxId)";
+        $cachedResponse = $this->connection->cache->get('Mailbox', $cacheKey);
+        if (!$cachedResponse) {
+            $request = new Request($this->connection);
+            $getArguments =  array('ids'=>array($mailboxId));
+            $mailboxCall = $request->addMethodCall('Mailbox', 'get', $getArguments);
+            $response = $request->send();
+            $callResponses = $response->getResponsesForMethodCall($mailboxCall);
+            $count = $callResponses[0]['list'][0]['totalEmails'];
+            $state = $callResponses[0]['state'];
+            $cachedResponse = $this->connection->cache->set('Mailbox', $state, $cacheKey, $count);
+        }
+        return $cachedResponse;
     }
     public function getMessages($mailboxId, $propertiesToRetrieve=null, $position=null)
     {
