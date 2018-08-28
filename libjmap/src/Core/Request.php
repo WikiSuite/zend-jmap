@@ -14,7 +14,7 @@ class ResultReference
     public function toRequest()
     {
         return (object) [
-          'name' => $this->backReferencedMethodCall->name,
+          'name' => $this->backReferencedMethodCall->getFullMethodName(),
           'path' => $this->path,
           'resultOf'=>$this->backReferencedMethodCall->client_id];
     }
@@ -22,13 +22,14 @@ class ResultReference
 
 class MethodCall
 {
-    public $name;
+    private $methodName;
     public $client_id;
     private $arguments;
 
-    public function __construct($name, $arguments)
+    public function __construct($object, $methodName, $arguments)
     {
-        $this->name = $name;
+        $this->object = $object;
+        $this->methodName = $methodName;
         $this->arguments = $arguments;
         $this->client_id = uniqid();
     }
@@ -42,11 +43,21 @@ class MethodCall
 
         return $retVal;
     }
+    public function getFullMethodName()
+    {
+        return $this->object.'/'.$this->methodName;
+    }
     public function toRequest()
     {
-        return array($this->name,
-     array_map(array($this, 'methodCallArgumentToRequest'), $this->arguments),
-     $this->client_id);
+        return array(
+          $this->getFullMethodName(),
+          array_map(
+            array(
+              $this, 'methodCallArgumentToRequest'),
+              $this->arguments
+            ),
+          $this->client_id
+      );
     }
 }
 class Request
@@ -57,9 +68,9 @@ class Request
     {
         $this->connection = $connection;
     }
-    public function addMethodCall($name, $arguments)
+    public function addMethodCall($object, $methodName, $arguments)
     {
-        $methodCall = new MethodCall($name, $arguments);
+        $methodCall = new MethodCall($object, $methodName, $arguments);
 
         array_push($this->methodCalls, $methodCall);
         return $methodCall;
@@ -71,7 +82,7 @@ class Request
         /*if (!in_array($filterOperator, ['AND','OR','NOT'])) {
             throw new \Exception("Invalid filter operator");
         }*/
-        return $this->addMethodCall($object.'/query', $filter);
+        return $this->addMethodCall($object, 'query', $filter);
     }
 
     public function toJson()
@@ -101,7 +112,11 @@ class Request
         }
         $request->setcontent($this->toJson());
         $response = $this->connection->client->send();
+        if (!$response->getHeaders()->get('Content-Type')->match('application/json')) {
+            throw new Exception\ResponseErrorException("The response had ".$response->getHeaders()->get('Content-Type')->toString()." instead of application/json.  Body is:\n ".$response->getBody());
+        }
         if ($this->connection->DEBUG) {
+            //var_dump($response->getBody());
             echo("DEBUG: Received response: \n".json_encode(json_decode($response->getBody(), true), JSON_PRETTY_PRINT)."\n");
         }
         return new Response($response->getBody());

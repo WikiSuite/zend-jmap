@@ -23,7 +23,7 @@ class Connection
         $this->client->setAuth( $user, $password, Client::AUTH_BASIC);
         $response = $this->client->send();
         //print_r($response);
-        $body= $response->getBody();
+        $body = $response->getBody();
         $this->session = new Session($body);
         $this->account = $this->session->getPrimaryAccount();
 

@@ -81,8 +81,6 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
 
         $inboxId = $this->mailboxes->getInboxId();
         $this->currentFolder = $this->getFolderByJmapId($inboxId);
-
-
     }
 
     /**
@@ -230,7 +228,7 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
     {
         $mailboxes = $this->mailboxes->getMailboxes();
 
-        $root = new Folder('/', '/', false);
+        $root = new Folder($this->delimiter, $this->delimiter, false);
         $mailboxesById = [null];
         $mailboxesByGlobalName = [null];
         foreach ($mailboxes as $index => $data) {
@@ -241,10 +239,10 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
                 $globalName = $localName;
             } else {
                 $parentFolder = $mailboxesById[$data['parentId']];
-                if (! $parent) {
-                    throw new Exception\RuntimeException('error while constructing folder tree, parent ' . $data['parentId']. ' not found');
+                if (! $parentFolder) {
+                    throw new \Zend\Mail\Storage\Exception\RuntimeException('error while constructing folder tree, parent ' . $data['parentId']. ' not found');
                 }
-                $globalName = $parent->getGlobalName() . $this->delimiter . $localName;
+                $globalName = $parentFolder->getGlobalName() . $this->delimiter . $localName;
             }
             $folder = new JmapFolder($localName, $globalName, true, [], $data['id']);
             $mailboxesById[$data['id']] = $folder;
@@ -269,7 +267,7 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
         ['mailboxesById'=>$mailboxesById] = $this->getFolderInfo();
         $foundFolder = $mailboxesById[$jmapId];
         if (! $foundFolder) {
-            throw new Exception\RuntimeException('folder with jmap id ' . $jmapId . ' not found');
+            throw new \Zend\Mail\Storage\Exception\RuntimeException('folder with jmap id ' . $jmapId . ' not found');
         }
         return $foundFolder;
     }
@@ -286,10 +284,13 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
         ['root'=>$root, 'mailboxesByGlobalName'=>$mailboxesByGlobalName] = $this->getFolderInfo();
         $foundFolder = null;
         if ($rootFolder) {
-            $foundFolder = $mailboxesByGlobalName[$rootFolder];
-            if (! $foundFolder) {
-                throw new Exception\RuntimeException('folder with globalName ' . $rootFolder . ' not found');
+            $rootFolderGlobalName = (string) $rootFolder;
+            //echo "getFolders($rootFolderGlobalName) looking into:\n";
+            //var_dump(array_keys($mailboxesByGlobalName));
+            if (!array_key_exists($rootFolderGlobalName, $mailboxesByGlobalName)) {
+                throw new \Zend\Mail\Storage\Exception\InvalidArgumentException('folder with globalName ' . $rootFolder . ' not found');
             }
+            $foundFolder = $mailboxesByGlobalName[$rootFolderGlobalName];
         } else {
             $foundFolder = $root;
         }
@@ -328,16 +329,48 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
      * @param string|Folder $parentFolder parent folder for new folder, else
      *     root folder is parent
      * @throws Exception\RuntimeException
+     * @throws Exception\InvalidArgumentException
      */
     public function createFolder($name, $parentFolder = null)
     {
-        echo "WRITEME: ".__METHOD__."\n";
-        $request = new \Wikisuite\Jmap\Core\Request($this->connection);
-        $arguments =  array('create'=>array($name =>array()));
-        $mailboxCall = $request->addMethodCall('Mailbox/set', $arguments);
-        $response = $request->send();
-        $rawResponse = $response->getResponsesForMethodCall($mailboxCall)[0]['list'];
-        var_dump($rawResponse);
+        $parentFolderReal = null;
+        $parentMailboxId = null;
+        $pathElements = explode($this->delimiter, $name);
+        if (empty($name)) {
+            throw new \Zend\Mail\Storage\Exception\InvalidArgumentException("name must be provided");
+        }
+
+        if ($parentFolder) {
+            $pathElementCount = count($pathElements);
+            if ($pathElementCount!==1) {
+                throw new \Zend\Mail\Storage\Exception\InvalidArgumentException("\$name must be a localName if parentElement is provided.  But \$name has $pathElementCount elements");
+            }
+            $parentFolderReal = $this->getFolders($parentFolder);
+            $parentFolderPathElements = explode($this->delimiter, $parentFolder);
+            $pathElements = array_merge($parentFolderPathElements, $pathElements);
+        }
+        ['root'=>$root, 'mailboxesByGlobalName'=>$mailboxesByGlobalName] = $this->getFolderInfo();
+        //Check that each element exists, and create if necessary
+        $pathElementCount = count($pathElements);
+        //var_dump($pathElementCount, $pathElements);
+        for ($i = 0; $i < $pathElementCount; $i++) {
+            $currentPath = implode($this->delimiter, array_slice($pathElements, 0, $i + 1));
+            $localName = $pathElements[$i];
+            //var_dump(array_keys($mailboxesByGlobalName));
+            //var_dump($i, $currentPath, $localName, array_key_exists($currentPath, $mailboxesByGlobalName));
+            if (array_key_exists($currentPath, $mailboxesByGlobalName)) {
+                if ($i + 1 === $pathElementCount) {
+                    //The last element in the path already exists
+                    throw new \Zend\Mail\Storage\Exception\InvalidArgumentException("Folder $currentPath already exists on the server");
+                }
+                $parentMailboxId = $mailboxesByGlobalName[$currentPath]->getId();
+            } else {
+                $parentMailboxId = $this->mailboxes->create($localName, $parentMailboxId);
+                if (empty($parentMailboxId)) {
+                    throw new \Zend\Mail\Storage\Exception\RuntimeException("mailbox $name wasn't created successfully");
+                }
+            }
+        }
     }
     /**
      * remove a folder
@@ -347,8 +380,11 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
      */
     public function removeFolder($name)
     {
-        echo "WRITEME: ".__METHOD__."\n";
-        die;
+        $folder = $this->getFolders($name);
+        if (!$folder) {
+            throw new \Zend\Mail\Storage\Exception\RuntimeException("mailbox $name not found, cannot delete");
+        }
+        $this->mailboxes->destroy($folder->getId());
     }
     /**
      * rename and/or move folder
@@ -420,5 +456,19 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
     {
         echo "WRITEME: ".__METHOD__."\n";
         die;
+    }
+    /**
+     * enable raw request output
+     */
+    public function enableDebug()
+    {
+        $this->connection->DEBUG = true;
+    }
+    /**
+     * disable raw request output
+     */
+    public function disableDebug()
+    {
+        $this->connection->DEBUG = false;
     }
 }
