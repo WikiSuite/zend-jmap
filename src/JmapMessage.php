@@ -81,8 +81,8 @@ class JmapMessage extends \Zend\Mail\Storage\Message implements Message\MessageI
             if (isset($this->jmapMessage['keywords']) && $this->jmapMessage['keywords']) {
                 $flags = [];
                 foreach ($this->jmapMessage['keywords'] as $keyword) {
-                    if (isset(self::jmapFlagsLookup[strtolower($keyword)])) {
-                        $flags[] = self::jmapFlagsLookup[strtolower($keyword)]['flag'];
+                    if (isset(self::$jmapFlagsLookup[strtolower($keyword)])) {
+                        $flags[] = self::$jmapFlagsLookup[strtolower($keyword)]['flag'];
                     }
                 }
                 // same as Storage/Message

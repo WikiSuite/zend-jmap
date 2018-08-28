@@ -24,6 +24,7 @@ $mail = new Jmap([
 echo $mail->countMessages() . " messages found\n";
 foreach ($mail as $message) {
     printf("Mail from '%s': %s\n", $message->from, $message->subject);
+    var_dump($message->getRawJmap());
 }
 $uniqueIdOfFirstMessage = $mail->getUniqueId(1);
 echo "Unique id of first message is $uniqueIdOfFirstMessage .\n";
@@ -32,5 +33,7 @@ echo "Index of first message is $numberOfFirstMessage (it should be 1...)\n";
 
 $folders = $mail->getFolders();
 echo "Folders in account\n";
-var_dump($folders);
+foreach ($folders as $folder) {
+    printf("Folder '%s'\n", $folder->getGlobalName());
+}
 //echo $mail->countMessages([Mail\Storage::FLAG_UNSEEN]) . " unread messages found\n";

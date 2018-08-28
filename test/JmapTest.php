@@ -10,7 +10,7 @@ declare(strict_types=1);
 namespace ZendTest\Jmap;
 
 use PHPUnit\Framework\TestCase;
-use Zend\Jmap\ConfigProvider;
+use Zend\Mail\Storage;
 use Zend\Jmap\Jmap;
 
 const TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL = "ZEND_JMAP_ROOTTESTMAILBOX";
@@ -242,8 +242,16 @@ class JmapTest extends TestCase
     public function testSetFlags()
     {
         $this->markTestSkipped(
-              'Not yet implemented.'
-            );
+             'Cyrus does not handle keywords properly yet.  Unable to run test.'
+           );
+
+        $message .= "From: me@example.org\r\n";
+        $message .= "To: you@example.org\r\n";
+        $message .= "Subject: append test\r\n";
+        $message .= "\r\n";
+        $message .= "This is a test\r\n";
+        self::$jmap->appendMessage($message);
+        self::$jmap->enableDebug();
         self::$jmap->setFlags(1, [Storage::FLAG_SEEN]);
         $message = self::$jmap->getMessage(1);
         $this->assertTrue($message->hasFlag(Storage::FLAG_SEEN));

@@ -36,13 +36,13 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
      * Note that the Recent and Deleted IMAP keywords are not exposed in JMAP
      * @var array
      */
-    /*protected static $constantsToJmapKeywordsSearch = [
-        Mail\Storage::FLAG_ANSWERED => array('$answered'=> true),
-        Mail\Storage::FLAG_SEEN => array('$seen' => true),
-        Mail\Storage::FLAG_UNSEEN => array('$seen' => false),
-        Mail\Storage::FLAG_DRAFT => array('$draft'=> true),
-        Mail\Storage::FLAG_FLAGGED => array('$flagged'=> true),
-    ];*/
+    protected static $storageFlagsToJmapKeyword = [
+        Storage::FLAG_ANSWERED => array('$answered'=> true),
+        Storage::FLAG_SEEN => array('$seen' => true),
+        Storage::FLAG_UNSEEN => array('$seen' => false),
+        Storage::FLAG_DRAFT => array('$draft'=> true),
+        Storage::FLAG_FLAGGED => array('$flagged'=> true),
+    ];
 
     /**
      * Folder delimiter character
@@ -531,7 +531,13 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
      */
     public function setFlags($id, $flags)
     {
-        echo "WRITEME: ".__METHOD__."\n";
+      $message = $this->getMessage($id);
+      $keywords = [];
+      forEach($flags as $flag) {
+        $keywords[] = self::$storageFlagsToJmapKeyword[$flag];
+      }
+      $propertiesToUpdate = array('keywords' =>$keywords);
+      $this->emails->update($message->getUniqueId(), $propertiesToUpdate);
     }
     /**
      * enable raw request output
