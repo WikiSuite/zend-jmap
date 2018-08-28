@@ -386,6 +386,23 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
         }
         $this->mailboxes->destroy($folder->getId());
     }
+
+    private function parseName($name)
+    {
+        $globalName = $name;
+        $pos = strrpos($globalName, $this->delimiter);
+        if ($pos === false) {
+            $localName = $globalName;
+            $parentGlobalName = null;
+        } else {
+            $localName = substr($globalName, $pos + 1);
+            $parentGlobalName = substr($globalName, 0, $pos);
+        }
+        return array('globalName'=>$globalName,
+       'localName'=>$localName,
+       'parentGlobalName'=>$parentGlobalName
+     );
+    }
     /**
      * rename and/or move folder
      *
@@ -397,8 +414,26 @@ class Jmap extends Storage\AbstractStorage implements Storage\Folder\FolderInter
      */
     public function renameFolder($oldName, $newName)
     {
-        echo "WRITEME: ".__METHOD__."\n";
-        die;
+        $folder = $this->getFolders($oldName);
+        $propertiesToUpdate = array();
+        if (!$folder) {
+            throw new \Zend\Mail\Storage\Exception\RuntimeException("mailbox $oldName not found, cannot rename");
+        }
+        $oldNameInfo = $this->parseName($oldName);
+        $newNameInfo =  $this->parseName($newName);
+        //var_dump($oldNameInfo, $newNameInfo);
+        if ($oldNameInfo['parentGlobalName'] !== $newNameInfo['parentGlobalName']) {
+            ['mailboxesByGlobalName'=>$mailboxesByGlobalName] = $this->getFolderInfo();
+            if (!array_key_exists($newNameInfo['parentGlobalName'], $mailboxesByGlobalName)) {
+                $this->createFolder($newNameInfo['parentGlobalName']);
+            }
+            $parentFolder = $this->getFolders($newNameInfo['parentGlobalName']);
+            $propertiesToUpdate['parentId']=$parentFolder->getId();
+        }
+        if ($oldNameInfo['localName'] !== $newNameInfo['localName']) {
+            $propertiesToUpdate['name']=$newNameInfo['localName'];
+        }
+        $this->mailboxes->update($folder->getId(), $propertiesToUpdate);
     }
 
 

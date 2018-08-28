@@ -145,6 +145,28 @@ class Mailbox
             throw new \Zend\Mail\Exception\RuntimeException($rawResponse['notDestroyed'][$mailboxId]['type']);
         }
     }
+
+    /**
+     * @param string $mailboxId The id of the mailbos to act on
+     * @param array $attributes Associative array of JMAP $properties to modify
+     */
+    public function update($mailboxId, $properties)
+    {
+        $request = new \Wikisuite\Jmap\Core\Request($this->connection);
+        $arguments =  array(
+        'update'=>array(
+          $mailboxId=>$properties
+        )
+      );
+        $mailboxCall = $request->addMethodCall('Mailbox', 'set', $arguments);
+        $response = $request->send();
+        $rawResponse = $response->getResponsesForMethodCall($mailboxCall)[0];
+
+        if (!empty($rawResponse["notUpdated"])) {
+            throw new \Zend\Mail\Exception\RuntimeException($rawResponse['notUpdated'][$mailboxId]['type']);
+        }
+    }
+
     /**
      * enable raw request output
      */

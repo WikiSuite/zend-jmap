@@ -131,7 +131,34 @@ class JmapTest extends TestCase
         $this->expectException('\Zend\Mail\Storage\Exception\InvalidArgumentException');
         self::$jmap->removeFolder(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/SomeRandomString');
     }
-
+    public function testRenameFolderSameParent()
+    {
+        self::$jmap->createFolder(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test1');
+        $folderCountBefore = $this->countFolders();
+        self::$jmap->renameFolder(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test1', TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test2');
+        $movedFolder = self::$jmap->getFolders(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test2');
+        $folderCountAfter = $this->countFolders();
+        $this->assertEquals($folderCountBefore, $folderCountAfter);
+    }
+    public function testRenameFolderDifferentParent()
+    {
+        self::$jmap->createFolder(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test1');
+        self::$jmap->createFolder(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/subfolder');
+        $folderCountBefore = $this->countFolders();
+        self::$jmap->renameFolder(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test1', TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/subfolder/test1');
+        $movedFolder = self::$jmap->getFolders(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/subfolder/test1');
+        $folderCountAfter = $this->countFolders();
+        $this->assertEquals($folderCountBefore, $folderCountAfter);
+    }
+    public function testRenameFolderNonexistentParent()
+    {
+        self::$jmap->createFolder(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test1');
+        $folderCountBefore = $this->countFolders();
+        self::$jmap->renameFolder(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/test1', TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/subfolder/test1');
+        $movedFolder = self::$jmap->getFolders(TESTS_ZEND_JMAP_TESTMAILBOX_GLOBAL.'/subfolder/test1');
+        $folderCountAfter = $this->countFolders();
+        $this->assertEquals($folderCountBefore+1, $folderCountAfter);
+    }
     public function testCountMessages()
     {
         $this->assertEquals(3, self::$jmap->countMessages(), "TEMPORARY:  Mail count should be 3");
